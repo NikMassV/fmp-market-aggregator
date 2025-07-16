@@ -1,0 +1,2 @@
+rootProject.name = 'marketpulse'
+include 'market-aggregator-service', 'market-storage-service', 'infrastructure' 
