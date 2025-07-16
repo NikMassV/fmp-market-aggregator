@@ -1,0 +1,7 @@
+server:
+  port: 8080
+
+fmp:
+  api:
+    key: demo
+    base-url: https://financialmodelingprep.com/api/v3
