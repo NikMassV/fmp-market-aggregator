@@ -18,14 +18,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class MarketDataControllerTest {
 
-    private final String testApiKey = "test-key";
-    private final String testBaseUrl = "http://test-url";
+    private static final String TEST_API_KEY = "test-key";
+    private static final String TEST_BASE_URL = "http://test-url";
 
     private MarketDataController createController(WebClient mockWebClient) {
         WebClient.Builder webClientBuilder = Mockito.mock(WebClient.Builder.class);
         Mockito.when(webClientBuilder.baseUrl(Mockito.anyString())).thenReturn(webClientBuilder);
         Mockito.when(webClientBuilder.build()).thenReturn(mockWebClient);
-        return new MarketDataController(webClientBuilder, testApiKey, testBaseUrl);
+        return new MarketDataController(webClientBuilder, TEST_API_KEY, TEST_BASE_URL);
     }
 
     @SuppressWarnings("unchecked")
@@ -43,16 +43,16 @@ class MarketDataControllerTest {
 
     @Test
     void getQuote_returnsQuote() {
-        String symbol = "AAPL";
-        QuoteDto mockQuote = new QuoteDto(symbol, 150.0);
+        String stockSymbol = "AAPL";
+        QuoteDto mockQuote = new QuoteDto(stockSymbol, 150.0);
         WebClient mockWebClient = Mockito.mock(WebClient.class);
         mockWebClientChain(mockWebClient, Flux.just(mockQuote));
 
         MarketDataController controller = createController(mockWebClient);
-        WebTestClient testClient = WebTestClient.bindToController(controller).build();
+        WebTestClient webTestClient = WebTestClient.bindToController(controller).build();
 
-        testClient.get()
-                .uri("/quotes/{symbol}", symbol)
+        webTestClient.get()
+                .uri("/quotes/{symbol}", stockSymbol)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(QuoteDto.class)
@@ -62,9 +62,9 @@ class MarketDataControllerTest {
     @Test
     void getQuote_invalidSymbol_returnsBadRequest() {
         MarketDataController controller = createController(Mockito.mock(WebClient.class));
-        WebTestClient testClient = WebTestClient.bindToController(controller).build();
+        WebTestClient webTestClient = WebTestClient.bindToController(controller).build();
 
-        testClient.get()
+        webTestClient.get()
                 .uri("/quotes/{symbol}", " ") // use blank string to trigger @NotBlank
                 .exchange()
                 .expectStatus().is4xxClientError(); // Accept any 4xx error
@@ -72,16 +72,16 @@ class MarketDataControllerTest {
 
     @Test
     void getQuote_fmpApiError_returnsInternalServerError() {
-        String symbol = "AAPL";
+        String stockSymbol = "AAPL";
         WebClient mockWebClient = Mockito.mock(WebClient.class);
         Flux<QuoteDto> errorFlux = Flux.error(new FmpApiException("FMP API error: 500 Internal Server Error"));
         mockWebClientChain(mockWebClient, errorFlux);
 
         MarketDataController controller = createController(mockWebClient);
-        WebTestClient testClient = WebTestClient.bindToController(controller).controllerAdvice(new com.marketpulse.aggregator.exception.GlobalExceptionHandler()).build();
+        WebTestClient webTestClient = WebTestClient.bindToController(controller).controllerAdvice(new com.marketpulse.aggregator.exception.GlobalExceptionHandler()).build();
 
-        testClient.get()
-                .uri("/quotes/{symbol}", symbol)
+        webTestClient.get()
+                .uri("/quotes/{symbol}", stockSymbol)
                 .exchange()
                 .expectStatus().isEqualTo(org.springframework.http.HttpStatus.BAD_GATEWAY)
                 .expectBody(String.class)
@@ -90,17 +90,17 @@ class MarketDataControllerTest {
 
     @Test
     void getQuote_timeout_returnsServerError() {
-        String symbol = "AAPL";
+        String stockSymbol = "AAPL";
         WebClient mockWebClient = Mockito.mock(WebClient.class);
-        Flux<QuoteDto> slowFlux = Flux.just(new QuoteDto(symbol, 150.0))
+        Flux<QuoteDto> slowFlux = Flux.just(new QuoteDto(stockSymbol, 150.0))
                                       .delayElements(Duration.ofSeconds(5));
         mockWebClientChain(mockWebClient, slowFlux);
 
         MarketDataController controller = createController(mockWebClient);
-        WebTestClient testClient = WebTestClient.bindToController(controller).build();
+        WebTestClient webTestClient = WebTestClient.bindToController(controller).build();
 
-        testClient.get()
-                .uri("/quotes/{symbol}", symbol)
+        webTestClient.get()
+                .uri("/quotes/{symbol}", stockSymbol)
                 .exchange()
                 .expectStatus().is5xxServerError();
     }
