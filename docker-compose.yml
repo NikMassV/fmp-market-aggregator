@@ -1,0 +1,14 @@
+services:
+  market-aggregator-service:
+    build:
+      context: ./market-aggregator-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+    networks:
+      - aggregator-network
+
+networks:
+  aggregator-network:
+    driver: bridge 
