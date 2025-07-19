@@ -1,0 +1,12 @@
+server:
+  port: 0
+
+fmp:
+  api:
+    key: test-key
+    base-url: http://test-url
+
+logging:
+  level:
+    com.marketpulse.aggregator: DEBUG
+    org.springframework.web: DEBUG
