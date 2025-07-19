@@ -2,8 +2,14 @@ package com.marketpulse.aggregator.controller;
 
 import com.marketpulse.aggregator.dto.QuoteDto;
 import com.marketpulse.aggregator.exception.FmpApiException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -12,96 +18,201 @@ import java.time.Duration;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("Market Data Controller Tests")
 class MarketDataControllerTest {
 
     private static final String TEST_API_KEY = "test-key";
     private static final String TEST_BASE_URL = "http://test-url";
+    private static final String VALID_SYMBOL = "AAPL";
+    private static final String INVALID_SYMBOL = "INVALID";
+    private static final double VALID_PRICE = 150.0;
 
-    private MarketDataController createController(WebClient mockWebClient) {
-        WebClient.Builder webClientBuilder = Mockito.mock(WebClient.Builder.class);
-        Mockito.when(webClientBuilder.baseUrl(Mockito.anyString())).thenReturn(webClientBuilder);
-        Mockito.when(webClientBuilder.build()).thenReturn(mockWebClient);
-        return new MarketDataController(webClientBuilder, TEST_API_KEY, TEST_BASE_URL);
+    @Mock
+    private WebClient mockWebClient;
+    @Mock
+    private WebClient.Builder webClientBuilder;
+    @Mock
+    private WebClient.RequestHeadersUriSpec uriSpec;
+    @Mock
+    private WebClient.RequestHeadersSpec headersSpec;
+    @Mock
+    private WebClient.ResponseSpec responseSpec;
+
+    private MarketDataController controller;
+    private WebTestClient webTestClient;
+
+    @BeforeEach
+    void setUp() {
+        when(webClientBuilder.baseUrl(anyString())).thenReturn(webClientBuilder);
+        when(webClientBuilder.build()).thenReturn(mockWebClient);
+        when(mockWebClient.get()).thenReturn(uriSpec);
+        when(uriSpec.uri(any(Function.class))).thenReturn(headersSpec);
+        when(headersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
+
+        controller = new MarketDataController(webClientBuilder, TEST_API_KEY, TEST_BASE_URL);
+        webTestClient = WebTestClient.bindToController(controller).build();
     }
 
-    @SuppressWarnings("unchecked")
-    private void mockWebClientChain(WebClient mockWebClient, Flux<QuoteDto> resultFlux) {
-        WebClient.RequestHeadersUriSpec uriSpec = Mockito.mock(WebClient.RequestHeadersUriSpec.class);
-        WebClient.RequestHeadersSpec headersSpec = Mockito.mock(WebClient.RequestHeadersSpec.class);
-        WebClient.ResponseSpec responseSpec = Mockito.mock(WebClient.ResponseSpec.class);
+    @Nested
+    @DisplayName("Get Quote Tests")
+    class GetQuoteTests {
 
-        Mockito.when(mockWebClient.get()).thenReturn(uriSpec);
-        Mockito.when(uriSpec.uri(Mockito.any(Function.class))).thenReturn(headersSpec);
-        Mockito.when(headersSpec.retrieve()).thenReturn(responseSpec);
-        Mockito.when(responseSpec.onStatus(Mockito.any(), Mockito.any())).thenReturn(responseSpec);
-        Mockito.when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(resultFlux);
+        @Test
+        @DisplayName("Should return quote when valid symbol is provided")
+        void getQuote_returnsQuote() {
+            QuoteDto mockQuote = new QuoteDto(VALID_SYMBOL, VALID_PRICE);
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(Flux.just(mockQuote));
+
+            webTestClient.get()
+                    .uri("/quotes/{symbol}", VALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().isOk()
+                    .expectBody(QuoteDto.class)
+                    .isEqualTo(mockQuote);
+        }
     }
 
-    @Test
-    void getQuote_returnsQuote() {
-        String stockSymbol = "AAPL";
-        QuoteDto mockQuote = new QuoteDto(stockSymbol, 150.0);
-        WebClient mockWebClient = Mockito.mock(WebClient.class);
-        mockWebClientChain(mockWebClient, Flux.just(mockQuote));
+    @Nested
+    @DisplayName("FMP API Error Tests")
+    class FmpApiErrorTests {
 
-        MarketDataController controller = createController(mockWebClient);
-        WebTestClient webTestClient = WebTestClient.bindToController(controller).build();
+        @Test
+        @DisplayName("Should return bad gateway when FMP API returns error")
+        void getQuote_fmpApiError_returnsBadGateway() {
+            Flux<QuoteDto> errorFlux = Flux.error(new FmpApiException("FMP API error: 500 Internal Server Error"));
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(errorFlux);
 
-        webTestClient.get()
-                .uri("/quotes/{symbol}", stockSymbol)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(QuoteDto.class)
-                .isEqualTo(mockQuote);
+            WebTestClient testClient = WebTestClient.bindToController(controller)
+                    .controllerAdvice(new com.marketpulse.aggregator.exception.GlobalExceptionHandler())
+                    .build();
+
+            testClient.get()
+                    .uri("/quotes/{symbol}", VALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().isEqualTo(HttpStatus.BAD_GATEWAY)
+                    .expectBody(String.class)
+                    .value(body -> assertThat(body).contains("FMP API error"));
+        }
+
+        @Test
+        @DisplayName("Should return bad gateway when FMP API returns 404")
+        void getQuote_fmpApiNotFound_returnsBadGateway() {
+            Flux<QuoteDto> errorFlux = Flux.error(new FmpApiException("FMP API error: 404 Not Found"));
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(errorFlux);
+
+            WebTestClient testClient = WebTestClient.bindToController(controller)
+                    .controllerAdvice(new com.marketpulse.aggregator.exception.GlobalExceptionHandler())
+                    .build();
+
+            testClient.get()
+                    .uri("/quotes/{symbol}", INVALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().isEqualTo(HttpStatus.BAD_GATEWAY)
+                    .expectBody(String.class)
+                    .value(body -> assertThat(body).contains("FMP API error"));
+        }
+
+        @Test
+        @DisplayName("Should return bad gateway when FMP API returns 401")
+        void getQuote_fmpApiUnauthorized_returnsBadGateway() {
+            Flux<QuoteDto> errorFlux = Flux.error(new FmpApiException("FMP API error: 401 Unauthorized"));
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(errorFlux);
+
+            WebTestClient testClient = WebTestClient.bindToController(controller)
+                    .controllerAdvice(new com.marketpulse.aggregator.exception.GlobalExceptionHandler())
+                    .build();
+
+            testClient.get()
+                    .uri("/quotes/{symbol}", VALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().isEqualTo(HttpStatus.BAD_GATEWAY)
+                    .expectBody(String.class)
+                    .value(body -> assertThat(body).contains("FMP API error"));
+        }
     }
 
-    @Test
-    void getQuote_invalidSymbol_returnsBadRequest() {
-        MarketDataController controller = createController(Mockito.mock(WebClient.class));
-        WebTestClient webTestClient = WebTestClient.bindToController(controller).build();
+    @Nested
+    @DisplayName("Timeout Tests")
+    class TimeoutTests {
 
-        webTestClient.get()
-                .uri("/quotes/{symbol}", " ") // use blank string to trigger @NotBlank
-                .exchange()
-                .expectStatus().is4xxClientError(); // Accept any 4xx error
+        @Test
+        @DisplayName("Should return server error when request times out")
+        void getQuote_timeout_returnsServerError() {
+            Flux<QuoteDto> slowFlux = Flux.just(new QuoteDto(VALID_SYMBOL, VALID_PRICE))
+                    .delayElements(Duration.ofSeconds(5));
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(slowFlux);
+
+            webTestClient.get()
+                    .uri("/quotes/{symbol}", VALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().is5xxServerError();
+        }
+
+        @Test
+        @DisplayName("Should return server error when request takes too long")
+        void getQuote_slowResponse_returnsServerError() {
+            Flux<QuoteDto> slowFlux = Flux.just(new QuoteDto(VALID_SYMBOL, VALID_PRICE))
+                    .delayElements(Duration.ofSeconds(10));
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(slowFlux);
+
+            webTestClient.get()
+                    .uri("/quotes/{symbol}", VALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().is5xxServerError();
+        }
     }
 
-    @Test
-    void getQuote_fmpApiError_returnsInternalServerError() {
-        String stockSymbol = "AAPL";
-        WebClient mockWebClient = Mockito.mock(WebClient.class);
-        Flux<QuoteDto> errorFlux = Flux.error(new FmpApiException("FMP API error: 500 Internal Server Error"));
-        mockWebClientChain(mockWebClient, errorFlux);
+    @Nested
+    @DisplayName("Edge Case Tests")
+    class EdgeCaseTests {
 
-        MarketDataController controller = createController(mockWebClient);
-        WebTestClient webTestClient = WebTestClient.bindToController(controller).controllerAdvice(new com.marketpulse.aggregator.exception.GlobalExceptionHandler()).build();
+        @Test
+        @DisplayName("Should handle multiple quotes from FMP API")
+        void getQuote_multipleQuotes_returnsFirstQuote() {
+            QuoteDto firstQuote = new QuoteDto(VALID_SYMBOL, VALID_PRICE);
+            QuoteDto secondQuote = new QuoteDto(VALID_SYMBOL, 160.0);
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(Flux.just(firstQuote, secondQuote));
 
-        webTestClient.get()
-                .uri("/quotes/{symbol}", stockSymbol)
-                .exchange()
-                .expectStatus().isEqualTo(org.springframework.http.HttpStatus.BAD_GATEWAY)
-                .expectBody(String.class)
-                .value(body -> assertThat(body).contains("FMP API error"));
-    }
+            webTestClient.get()
+                    .uri("/quotes/{symbol}", VALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().isOk()
+                    .expectBody(QuoteDto.class)
+                    .isEqualTo(firstQuote);
+        }
 
-    @Test
-    void getQuote_timeout_returnsServerError() {
-        String stockSymbol = "AAPL";
-        WebClient mockWebClient = Mockito.mock(WebClient.class);
-        Flux<QuoteDto> slowFlux = Flux.just(new QuoteDto(stockSymbol, 150.0))
-                                      .delayElements(Duration.ofSeconds(5));
-        mockWebClientChain(mockWebClient, slowFlux);
+        @Test
+        @DisplayName("Should handle zero price from FMP API")
+        void getQuote_zeroPrice_returnsQuote() {
+            QuoteDto mockQuote = new QuoteDto(VALID_SYMBOL, 0.0);
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(Flux.just(mockQuote));
 
-        MarketDataController controller = createController(mockWebClient);
-        WebTestClient webTestClient = WebTestClient.bindToController(controller).build();
+            webTestClient.get()
+                    .uri("/quotes/{symbol}", VALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().isOk()
+                    .expectBody(QuoteDto.class)
+                    .isEqualTo(mockQuote);
+        }
 
-        webTestClient.get()
-                .uri("/quotes/{symbol}", stockSymbol)
-                .exchange()
-                .expectStatus().is5xxServerError();
+        @Test
+        @DisplayName("Should handle negative price from FMP API")
+        void getQuote_negativePrice_returnsQuote() {
+            QuoteDto mockQuote = new QuoteDto(VALID_SYMBOL, -10.0);
+            when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(Flux.just(mockQuote));
+
+            webTestClient.get()
+                    .uri("/quotes/{symbol}", VALID_SYMBOL)
+                    .exchange()
+                    .expectStatus().isOk()
+                    .expectBody(QuoteDto.class)
+                    .isEqualTo(mockQuote);
+        }
     }
 }
