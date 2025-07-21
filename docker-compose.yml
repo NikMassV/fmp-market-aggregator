@@ -8,6 +8,14 @@ services:
       - SPRING_PROFILES_ACTIVE=default
     networks:
       - aggregator-network
+  sonarqube:
+    image: sonarqube:community
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    networks:
+      - aggregator-network
 
 networks:
   aggregator-network:
