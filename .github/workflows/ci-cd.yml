@@ -71,4 +71,4 @@ jobs:
         run: chmod +x gradlew
 
       - name: SonarQube Scan
-        run: ./gradlew sonarqube -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} -Dsonar.login=${{ secrets.SONAR_TOKEN }} -Dsonar.organization=${{ secrets.SONAR_ORG }} -Dsonar.projectKey=marketpulse
+        run: ./gradlew sonar -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} -Dsonar.login=${{ secrets.SONAR_TOKEN }} -Dsonar.organization=${{ secrets.SONAR_ORG }} -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
