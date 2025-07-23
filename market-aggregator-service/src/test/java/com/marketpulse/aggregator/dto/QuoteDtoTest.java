@@ -135,9 +135,9 @@ class QuoteDtoTest {
     void shouldBeEqualWhenSameSymbolAndPrice() {
         QuoteDto quote1 = new QuoteDto(VALID_SYMBOL, VALID_PRICE);
         QuoteDto quote2 = new QuoteDto(VALID_SYMBOL, VALID_PRICE);
-
-        assertThat(quote1).isEqualTo(quote2);
-        assertThat(quote1.hashCode()).isEqualTo(quote2.hashCode());
+        assertThat(quote1)
+            .isEqualTo(quote2)
+            .hasSameHashCodeAs(quote2);
     }
 
     @Test
@@ -163,8 +163,8 @@ class QuoteDtoTest {
     void shouldHaveMeaningfulToString() {
         QuoteDto quote = new QuoteDto(VALID_SYMBOL, VALID_PRICE);
         String toString = quote.toString();
-
-        assertThat(toString).contains(VALID_SYMBOL);
-        assertThat(toString).contains(String.valueOf(VALID_PRICE));
+        assertThat(toString)
+            .contains(VALID_SYMBOL)
+            .contains(String.valueOf(VALID_PRICE));
     }
 }
