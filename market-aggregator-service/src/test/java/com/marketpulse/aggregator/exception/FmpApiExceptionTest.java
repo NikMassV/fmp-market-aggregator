@@ -72,9 +72,7 @@ class FmpApiExceptionTest {
     @Test
     @DisplayName("Should have correct HTTP status annotation")
     void shouldHaveCorrectHttpStatusAnnotation() {
-        FmpApiException exception = new FmpApiException(ERROR_MESSAGE);
-        ResponseStatus annotation = exception.getClass().getAnnotation(ResponseStatus.class);
-
+        ResponseStatus annotation = FmpApiException.class.getAnnotation(ResponseStatus.class);
         assertThat(annotation).isNotNull();
         assertThat(annotation.value()).isEqualTo(HttpStatus.BAD_GATEWAY);
     }
@@ -92,9 +90,9 @@ class FmpApiExceptionTest {
     void shouldHaveMeaningfulToString() {
         FmpApiException exception = new FmpApiException(ERROR_MESSAGE);
         String toString = exception.toString();
-
-        assertThat(toString).contains(FmpApiException.class.getSimpleName());
-        assertThat(toString).contains(ERROR_MESSAGE);
+        assertThat(toString)
+            .contains(FmpApiException.class.getSimpleName())
+            .contains(ERROR_MESSAGE);
     }
 
     @Test

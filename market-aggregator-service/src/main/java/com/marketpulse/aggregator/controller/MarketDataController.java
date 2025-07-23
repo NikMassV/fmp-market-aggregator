@@ -3,7 +3,6 @@ package com.marketpulse.aggregator.controller;
 import com.marketpulse.aggregator.dto.QuoteDto;
 import com.marketpulse.aggregator.exception.FmpApiException;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +18,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import org.springframework.web.server.ResponseStatusException;
 
-import jakarta.validation.constraints.NotBlank;
 import java.time.Duration;
 
 @RestController
@@ -46,7 +44,7 @@ public class MarketDataController {
         if (symbol == null || symbol.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Symbol must not be blank");
         }
-        log.info("Received request for quote: {}", symbol);
+        log.info("Received request for quote");
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/quote/{symbol}")

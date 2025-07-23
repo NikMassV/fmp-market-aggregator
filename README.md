@@ -79,6 +79,26 @@ To run SonarQube analysis automatically after every build, use the following com
 
 This will build the project and trigger SonarQube analysis at the end. The `--%` is required in PowerShell to pass the `-D` property correctly.
 
+## Running SonarQube Analysis Locally
+
+To analyze your project with SonarQube locally, use the following command:
+
+```sh
+./gradlew sonar "-Dsonar.projectKey=fmp-market-aggregator" "-Dsonar.login=YOUR_USER_TOKEN"
+```
+
+### How to Get a SonarQube Token for Local Analysis
+1. Log in to your SonarQube instance (e.g., http://localhost:9000).
+2. Go to your user profile (top right) → **My Account** → **Security**.
+3. Under **Generate Tokens**, enter a name (e.g., `local-dev`) and click **Generate**.
+4. **Copy the generated token immediately**. You will not be able to see it again.
+5. Use this token as `YOUR_USER_TOKEN` in the command above.
+
+**Note:**
+- The `sonar.projectKey` must match your project key in SonarQube.
+- You do not need a `sonar-project.properties` file if you pass all properties via the command line.
+- Make sure your SonarQube server is running and accessible at the specified URL.
+
 ---
 
 Further details and implementation will be added step by step as the project evolves. 
