@@ -2,6 +2,8 @@ package com.marketpulse.aggregator.controller;
 
 import com.marketpulse.aggregator.dto.QuoteDto;
 import com.marketpulse.aggregator.exception.FmpApiException;
+import com.marketpulse.aggregator.producer.MarketQuoteProducer;
+import com.marketpulse.avro.MarketQuote;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Duration;
 
@@ -29,13 +32,17 @@ public class MarketDataController {
     private final WebClient webClient;
     private final String apiKey;
     private final String baseUrl;
+    private final MarketQuoteProducer marketQuoteProducer;
 
+    @Autowired
     public MarketDataController(WebClient.Builder webClientBuilder,
                                 @Value("${fmp.api.key:demo}") String apiKey,
-                                @Value("${fmp.api.base-url}") String baseUrl) {
+                                @Value("${fmp.api.base-url}") String baseUrl,
+                                MarketQuoteProducer marketQuoteProducer) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
         this.webClient = webClientBuilder.baseUrl(this.baseUrl).build();
+        this.marketQuoteProducer = marketQuoteProducer;
     }
 
     @Operation(summary = "Get stock quote by symbol", description = "Fetches the latest stock quote for the given symbol from FMP API.")
@@ -59,7 +66,34 @@ public class MarketDataController {
                 .bodyToFlux(QuoteDto.class)
                 .next()
                 .timeout(Duration.ofSeconds(3))
-                .doOnNext(quote -> log.info("Fetched quote for {}: {}", symbol, quote))
+                .doOnNext(quote -> {
+                    log.info("Fetched quote for {}: {}", symbol, quote);
+                    MarketQuote avroQuote = MarketQuote.newBuilder()
+                        .setSymbol(quote.getSymbol())
+                        .setPrice(quote.getPrice())
+                        .setName(null)
+                        .setChangesPercentage(null)
+                        .setChange(null)
+                        .setDayLow(null)
+                        .setDayHigh(null)
+                        .setYearHigh(null)
+                        .setYearLow(null)
+                        .setMarketCap(null)
+                        .setPriceAvg50(null)
+                        .setPriceAvg200(null)
+                        .setVolume(null)
+                        .setAvgVolume(null)
+                        .setExchange(null)
+                        .setOpen(null)
+                        .setPreviousClose(null)
+                        .setEps(null)
+                        .setPe(null)
+                        .setEarningsAnnouncement(null)
+                        .setSharesOutstanding(null)
+                        .setTimestamp(null)
+                        .build();
+                    marketQuoteProducer.send(avroQuote);
+                })
                 .doOnError(e -> log.error("Error fetching quote for {}: {}", symbol, e.getMessage()));
     }
 }
