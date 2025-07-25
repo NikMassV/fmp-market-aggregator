@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "MarketQuote",
+  "namespace": "com.marketpulse.avro",
+  "fields": [
+    {"name": "symbol", "type": "string"},
+    {"name": "name", "type": ["null", "string"], "default": null},
+    {"name": "price", "type": ["null", "double"], "default": null},
+    {"name": "changesPercentage", "type": ["null", "double"], "default": null},
+    {"name": "change", "type": ["null", "double"], "default": null},
+    {"name": "dayLow", "type": ["null", "double"], "default": null},
+    {"name": "dayHigh", "type": ["null", "double"], "default": null},
+    {"name": "yearHigh", "type": ["null", "double"], "default": null},
+    {"name": "yearLow", "type": ["null", "double"], "default": null},
+    {"name": "marketCap", "type": ["null", "double"], "default": null},
+    {"name": "priceAvg50", "type": ["null", "double"], "default": null},
+    {"name": "priceAvg200", "type": ["null", "double"], "default": null},
+    {"name": "volume", "type": ["null", "double"], "default": null},
+    {"name": "avgVolume", "type": ["null", "double"], "default": null},
+    {"name": "exchange", "type": ["null", "string"], "default": null},
+    {"name": "open", "type": ["null", "double"], "default": null},
+    {"name": "previousClose", "type": ["null", "double"], "default": null},
+    {"name": "eps", "type": ["null", "double"], "default": null},
+    {"name": "pe", "type": ["null", "double"], "default": null},
+    {"name": "earningsAnnouncement", "type": ["null", "string"], "default": null},
+    {"name": "sharesOutstanding", "type": ["null", "double"], "default": null},
+    {"name": "timestamp", "type": ["null", "long"], "default": null}
+  ]
+}

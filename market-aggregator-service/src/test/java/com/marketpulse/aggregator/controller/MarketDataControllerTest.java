@@ -2,6 +2,7 @@ package com.marketpulse.aggregator.controller;
 
 import com.marketpulse.aggregator.dto.QuoteDto;
 import com.marketpulse.aggregator.exception.FmpApiException;
+import com.marketpulse.aggregator.producer.MarketQuoteProducer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -21,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Market Data Controller Tests")
@@ -42,6 +44,8 @@ class MarketDataControllerTest {
     private WebClient.RequestHeadersSpec headersSpec;
     @Mock
     private WebClient.ResponseSpec responseSpec;
+    @Mock
+    private MarketQuoteProducer marketQuoteProducer;
 
     private MarketDataController controller;
     private WebTestClient webTestClient;
@@ -55,7 +59,7 @@ class MarketDataControllerTest {
         when(headersSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
 
-        controller = new MarketDataController(webClientBuilder, TEST_API_KEY, TEST_BASE_URL);
+        controller = new MarketDataController(webClientBuilder, TEST_API_KEY, TEST_BASE_URL, marketQuoteProducer);
         webTestClient = WebTestClient.bindToController(controller).build();
     }
 
@@ -214,5 +218,17 @@ class MarketDataControllerTest {
                     .expectBody(QuoteDto.class)
                     .isEqualTo(mockQuote);
         }
+    }
+
+    @Test
+    @DisplayName("Should call producer when quote is fetched")
+    void getQuote_validSymbol_callsProducer() {
+        QuoteDto mockQuote = new QuoteDto(VALID_SYMBOL, VALID_PRICE);
+        when(responseSpec.bodyToFlux(QuoteDto.class)).thenReturn(Flux.just(mockQuote));
+        webTestClient.get()
+            .uri("/quotes/{symbol}", VALID_SYMBOL)
+            .exchange()
+            .expectStatus().isOk();
+        verify(marketQuoteProducer).send(any());
     }
 }

@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version "$springBootVersion"
     id 'io.spring.dependency-management' version "$springDependencyManagementVersion"
+    id 'com.github.davidmc24.gradle.plugin.avro' version "$avroGradlePluginVersion"
 }
 
 java {
@@ -14,6 +15,9 @@ dependencies {
     implementation "org.springdoc:springdoc-openapi-starter-webflux-ui:$springDocVersion"
     implementation "org.projectlombok:lombok:$lombokVersion"
     implementation "org.springframework.boot:spring-boot-starter-validation"
+    implementation "org.springframework.kafka:spring-kafka:$springKafkaVersion"
+    implementation "io.confluent:kafka-avro-serializer:$confluentVersion"
+    implementation "org.apache.avro:avro:$avroVersion"
     annotationProcessor "org.projectlombok:lombok:$lombokVersion"
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
     testImplementation "org.springframework.boot:spring-boot-starter-test"
@@ -22,6 +26,22 @@ dependencies {
     testImplementation "org.springframework:spring-webflux"
     testImplementation "org.springframework:spring-test"
     testImplementation "org.springframework.boot:spring-boot-test-autoconfigure"
+}
+
+avro {
+    createSetters = true
+    fieldVisibility = 'PRIVATE'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java', 'build/generated-main-avro-java']
+        }
+        resources {
+            srcDirs += ['../infrastructure/avro']
+        }
+    }
 }
 
 test {

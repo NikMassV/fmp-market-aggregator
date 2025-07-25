@@ -1,7 +1,21 @@
 server:
   port: 8080
 
+springdoc:
+  swagger-ui:
+    path: /swagger/v1
+
 fmp:
   api:
-    key: demo
+    key: api_key
     base-url: https://financialmodelingprep.com/api/v3
+
+spring:
+  kafka:
+    bootstrap-servers: kafka:9092
+    properties:
+      schema.registry.url: http://schema-registry:8081
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+    client-id: aggregator-service
